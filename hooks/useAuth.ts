@@ -40,7 +40,7 @@ async function signInChrome(oauthUrl: string): Promise<{ accessToken: string; re
   return extractTokensFromUrl(responseUrl);
 }
 
-// Firefox: open a tab and listen for the redirect back to the Supabase site URL
+// Firefox: intercept the redirect with webRequest before Firefox tries to connect
 async function signInFirefox(): Promise<{ accessToken: string; refreshToken: string } | null> {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -52,17 +52,22 @@ async function signInFirefox(): Promise<{ accessToken: string; refreshToken: str
   return new Promise((resolve) => {
     let tabId: number | undefined;
 
-    function onUpdated(id: number, changeInfo: { url?: string }, tab: { url?: string }) {
-      if (id !== tabId) return;
-      const url = tab.url ?? changeInfo.url ?? '';
-      if (!url || !url.includes('access_token=')) return;
+    function interceptor(details: { url: string; tabId: number }) {
+      if (!details.url.includes('access_token=')) return {};
 
-      browser.tabs.onUpdated.removeListener(onUpdated);
-      browser.tabs.remove(tabId);
-      resolve(extractTokensFromUrl(url));
+      // Remove listener and close the auth tab before Firefox renders the error
+      browser.webRequest.onBeforeRequest.removeListener(interceptor);
+      if (tabId !== undefined) browser.tabs.remove(tabId);
+
+      resolve(extractTokensFromUrl(details.url));
+      return { cancel: true }; // Prevent Firefox from trying to connect
     }
 
-    browser.tabs.onUpdated.addListener(onUpdated);
+    browser.webRequest.onBeforeRequest.addListener(
+      interceptor,
+      { urls: ['http://localhost:3000/*'] },
+      ['blocking'],
+    );
 
     browser.tabs.create({ url: data.url, active: true }).then((tab) => {
       tabId = tab.id;
