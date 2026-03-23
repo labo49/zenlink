@@ -7,4 +7,8 @@ export default defineConfig({
   vite: () => ({
     plugins: [tailwindcss()],
   }),
+  manifest: {
+    permissions: ['identity', 'tabs', 'storage'],
+    host_permissions: ['https://tysfpsvjzjzimiipykol.supabase.co/*'],
+  },
 });

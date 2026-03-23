@@ -12,9 +12,9 @@ ZenLink is a private, single-user link-saving tool (Pocket replacement). It allo
 - **State Management:** TanStack Query (for syncing UI with DB)
 
 ## ☁️ Infrastructure
-- Supabase is self-hosted (not Supabase Cloud) on a Google Cloud VM
-- The `VITE_SUPABASE_URL` in `.env` points to the VM's public IP/domain
-- Supabase Edge Functions run on the VM and handle AI tagging logic
+- Supabase is hosted on Supabase Cloud
+- Project URL: `https://tysfpsvjzjzimiipykol.supabase.co`
+- Supabase Edge Functions handle AI tagging logic
 
 ## 🚀 Core Features & Logic
 

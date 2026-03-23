@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import LoginScreen from '@/components/LoginScreen';
 import InboxView from '@/components/InboxView';
 import SnoozedView from '@/components/SnoozedView';
 import SaveLinkForm from '@/components/SaveLinkForm';
@@ -6,13 +8,32 @@ import SaveLinkForm from '@/components/SaveLinkForm';
 type Tab = 'inbox' | 'snoozed';
 
 export default function App() {
+  const { session, loading, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState<Tab>('inbox');
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-400 text-sm">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <LoginScreen />;
+  }
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white">
         <span className="font-bold text-lg text-indigo-600">ZenLink</span>
+        <button
+          onClick={signOut}
+          className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          Sign out
+        </button>
       </div>
 
       {/* Save link form */}
