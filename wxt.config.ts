@@ -12,6 +12,7 @@ export default defineConfig({
     host_permissions: [
       'https://tysfpsvjzjzimiipykol.supabase.co/*',
       'http://localhost:3000/*',
+      'https://generativelanguage.googleapis.com/*',
     ],
     // Firefox requires a stable extension ID for OAuth redirect URLs to work
     ...(browser === 'firefox' && {

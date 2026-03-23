@@ -29,19 +29,32 @@ export default function SaveLinkForm() {
   async function fetchAiTags(pageTitle: string) {
     setLoadingTags(true);
     try {
+      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) return;
+
+      const prompt = `Given this webpage title, return ONLY a JSON array of 3-5 lowercase hashtags (no spaces, no # symbol) useful for filtering saved links. Example: ["javascript","react","tutorial"]\n\nTitle: "${pageTitle}"`;
+
       const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/suggest-tags`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session?.access_token}`,
-          },
-          body: JSON.stringify({ title: pageTitle }),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 100 },
+          }),
         },
       );
-      const data = await res.json() as { tags: string[] };
-      setTags(data.tags ?? []);
+
+      if (!res.ok) return;
+
+      const data = await res.json() as { candidates?: [{ content: { parts: [{ text: string }] } }] };
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+      const cleaned = text.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
+      const match = cleaned.match(/\[[\s\S]*\]/);
+      const suggested: string[] = match ? JSON.parse(match[0]) : [];
+      // Strip any leading # from tags
+      setTags(suggested.map((t) => t.replace(/^#/, '')).slice(0, 5));
     } catch {
       // Graceful degradation — AI is optional
     } finally {
