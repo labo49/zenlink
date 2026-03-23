@@ -2,18 +2,57 @@ import { supabase } from '@/lib/supabase';
 import type { Link } from '@/lib/types';
 
 export default defineBackground(() => {
+  // Firefox OAuth flow — initiated by popup via message
+  browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === 'FIREFOX_SIGN_IN') {
+      handleFirefoxSignIn(message.oauthUrl).then(sendResponse);
+      return true; // Keep message channel open for async response
+    }
+  });
+
   // On browser startup, move on_next_session links back to inbox and open them
   browser.runtime.onStartup.addListener(handleNextSessionLinks);
-
-  // Also check when the extension is first installed/updated
   browser.runtime.onInstalled.addListener(handleNextSessionLinks);
 
-  // Check snoozed links every 5 minutes and wake up any that are due
+  // Check snoozed links every 5 minutes
   browser.alarms.create('snooze-check', { periodInMinutes: 5 });
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'snooze-check') handleSnoozedLinks();
   });
 });
+
+async function handleFirefoxSignIn(oauthUrl: string): Promise<{ accessToken: string; refreshToken: string } | null> {
+  return new Promise((resolve) => {
+    let tabId: number | undefined;
+
+    function interceptor(details: { url: string }) {
+      if (!details.url.includes('access_token=')) return {};
+
+      browser.webRequest.onBeforeRequest.removeListener(interceptor);
+      if (tabId !== undefined) browser.tabs.remove(tabId);
+
+      const url = new URL(details.url);
+      const hashParams = new URLSearchParams(url.hash.slice(1));
+      const queryParams = new URLSearchParams(url.search);
+
+      const accessToken = hashParams.get('access_token') ?? queryParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
+
+      resolve(accessToken && refreshToken ? { accessToken, refreshToken } : null);
+      return { cancel: true };
+    }
+
+    browser.webRequest.onBeforeRequest.addListener(
+      interceptor,
+      { urls: ['http://localhost:3000/*'] },
+      ['blocking'],
+    );
+
+    browser.tabs.create({ url: oauthUrl, active: true }).then((tab) => {
+      tabId = tab.id;
+    });
+  });
+}
 
 async function getSession() {
   const { data } = await supabase.auth.getSession();

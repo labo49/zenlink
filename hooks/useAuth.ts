@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-
 function isFirefox() {
   return browser.runtime.getURL('').startsWith('moz-extension://');
 }
@@ -12,16 +10,14 @@ async function extractTokensFromUrl(url: string): Promise<{ accessToken: string;
   const parsed = new URL(url);
   const hashParams = new URLSearchParams(parsed.hash.slice(1));
   const queryParams = new URLSearchParams(parsed.search);
-
   const accessToken = hashParams.get('access_token') ?? queryParams.get('access_token');
   const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
-
   if (accessToken && refreshToken) return { accessToken, refreshToken };
   return null;
 }
 
 // Chrome: use browser.identity.launchWebAuthFlow
-async function signInChrome(oauthUrl: string): Promise<{ accessToken: string; refreshToken: string } | null> {
+async function signInChrome(): Promise<{ accessToken: string; refreshToken: string } | null> {
   const redirectUrl = browser.identity.getRedirectURL();
 
   const { data, error } = await supabase.auth.signInWithOAuth({
@@ -40,7 +36,7 @@ async function signInChrome(oauthUrl: string): Promise<{ accessToken: string; re
   return extractTokensFromUrl(responseUrl);
 }
 
-// Firefox: intercept the redirect with webRequest before Firefox tries to connect
+// Firefox: delegate to background script which holds the webRequest listener
 async function signInFirefox(): Promise<{ accessToken: string; refreshToken: string } | null> {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -49,30 +45,12 @@ async function signInFirefox(): Promise<{ accessToken: string; refreshToken: str
 
   if (error || !data.url) return null;
 
-  return new Promise((resolve) => {
-    let tabId: number | undefined;
-
-    function interceptor(details: { url: string; tabId: number }) {
-      if (!details.url.includes('access_token=')) return {};
-
-      // Remove listener and close the auth tab before Firefox renders the error
-      browser.webRequest.onBeforeRequest.removeListener(interceptor);
-      if (tabId !== undefined) browser.tabs.remove(tabId);
-
-      resolve(extractTokensFromUrl(details.url));
-      return { cancel: true }; // Prevent Firefox from trying to connect
-    }
-
-    browser.webRequest.onBeforeRequest.addListener(
-      interceptor,
-      { urls: ['http://localhost:3000/*'] },
-      ['blocking'],
-    );
-
-    browser.tabs.create({ url: data.url, active: true }).then((tab) => {
-      tabId = tab.id;
-    });
+  const result = await browser.runtime.sendMessage({
+    type: 'FIREFOX_SIGN_IN',
+    oauthUrl: data.url,
   });
+
+  return result ?? null;
 }
 
 export function useAuth() {
@@ -93,9 +71,7 @@ export function useAuth() {
   }, []);
 
   async function signInWithGoogle() {
-    const result = isFirefox()
-      ? await signInFirefox()
-      : await signInChrome(SUPABASE_URL);
+    const result = isFirefox() ? await signInFirefox() : await signInChrome();
 
     if (result) {
       await supabase.auth.setSession({
