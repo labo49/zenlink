@@ -33,10 +33,12 @@ async function handleFirefoxSignIn(oauthUrl: string): Promise<{ accessToken: str
 
     // tabs.onUpdated sees the FULL URL including the hash fragment
     // This fires when the tab navigates to localhost:3000/#access_token=...
-    function onTabUpdated(id: number, _changeInfo: object, tab: { url?: string }) {
+    function onTabUpdated(id: number, changeInfo: { url?: string }, tab: { url?: string }) {
       if (id !== tabId || done) return;
-      const url = tab.url ?? '';
-      if (!url.includes('access_token=')) return;
+      // Prefer changeInfo.url (only set on actual URL change) over tab.url
+      const url = changeInfo.url ?? tab.url ?? '';
+      // Must be the localhost redirect specifically — not any intermediate OAuth URL
+      if (!url.startsWith('http://localhost:3000') || !url.includes('access_token=')) return;
 
       done = true;
       cleanup();
