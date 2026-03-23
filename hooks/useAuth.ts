@@ -20,6 +20,8 @@ export function useAuth() {
   }, []);
 
   async function signInWithGoogle() {
+    // Firefox uses extensions.allizom.org, Chrome uses chromiumapp.org
+    // browser.identity.getRedirectURL() returns the correct one automatically
     const redirectUrl = browser.identity.getRedirectURL();
 
     const { data, error } = await supabase.auth.signInWithOAuth({
@@ -39,11 +41,13 @@ export function useAuth() {
 
     if (!responseUrl) return;
 
-    // Extract tokens from the redirect URL hash
+    // Tokens may be in the hash (implicit flow) or query params (PKCE)
     const url = new URL(responseUrl);
-    const params = new URLSearchParams(url.hash.slice(1));
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
+    const hashParams = new URLSearchParams(url.hash.slice(1));
+    const queryParams = new URLSearchParams(url.search);
+
+    const accessToken = hashParams.get('access_token') ?? queryParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
 
     if (accessToken && refreshToken) {
       await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
