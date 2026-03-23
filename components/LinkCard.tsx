@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
-import type { Link, SnoozeOption } from '@/lib/types';
+import type { Link, SnoozeSelection } from '@/lib/types';
+import SnoozeDropdown from './SnoozeDropdown';
 
 interface LinkCardProps {
   link: Link;
   onDelete: () => void;
-  onSnooze?: (option: SnoozeOption) => void;
+  onSnooze?: (selection: SnoozeSelection) => void;
 }
-
-const SNOOZE_OPTIONS: { label: string; value: SnoozeOption }[] = [
-  { label: 'Friday morning', value: 'friday' },
-  { label: 'Monday morning', value: 'monday' },
-  { label: 'In 4 weeks', value: '4weeks' },
-  { label: 'Next session', value: 'next_session' },
-];
 
 export default function LinkCard({ link, onDelete, onSnooze }: LinkCardProps) {
   const [showSnooze, setShowSnooze] = useState(false);
@@ -50,7 +44,7 @@ export default function LinkCard({ link, onDelete, onSnooze }: LinkCardProps) {
 
         {link.snoozed_until && (
           <span className="text-xs text-amber-500">
-            Snoozed until {new Date(link.snoozed_until).toLocaleDateString()}
+            Snoozed until {new Date(link.snoozed_until).toLocaleString()}
           </span>
         )}
 
@@ -71,17 +65,10 @@ export default function LinkCard({ link, onDelete, onSnooze }: LinkCardProps) {
               🕐
             </button>
             {showSnooze && (
-              <div className="absolute right-0 top-6 z-10 bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-40">
-                {SNOOZE_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => { onSnooze(opt.value); setShowSnooze(false); }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-600"
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
+              <SnoozeDropdown
+                onSelect={onSnooze}
+                onClose={() => setShowSnooze(false)}
+              />
             )}
           </div>
         )}

@@ -1,7 +1,8 @@
 import { supabase } from '@/lib/supabase';
+import type { Link } from '@/lib/types';
 
 export default defineBackground(() => {
-  // On browser startup, move on_next_session links back to inbox
+  // On browser startup, move on_next_session links back to inbox and open them
   browser.runtime.onStartup.addListener(handleNextSessionLinks);
 
   // Also check when the extension is first installed/updated
@@ -19,18 +20,32 @@ async function getSession() {
   return data.session;
 }
 
+async function openLinksInTabs(links: Link[]) {
+  for (const link of links) {
+    await browser.tabs.create({ url: link.url, active: false });
+  }
+}
+
 async function handleNextSessionLinks() {
   const session = await getSession();
   if (!session) return;
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('links')
     .update({ on_next_session: false })
     .eq('user_id', session.user.id)
-    .eq('on_next_session', true);
+    .eq('on_next_session', true)
+    .select();
 
-  if (error) console.error('[ZenLink] Failed to wake next-session links:', error.message);
-  else console.log('[ZenLink] Next-session links moved to inbox.');
+  if (error) {
+    console.error('[ZenLink] Failed to wake next-session links:', error.message);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    console.log(`[ZenLink] Waking ${data.length} next-session link(s).`);
+    await openLinksInTabs(data as Link[]);
+  }
 }
 
 async function handleSnoozedLinks() {
@@ -39,13 +54,21 @@ async function handleSnoozedLinks() {
 
   const now = new Date().toISOString();
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('links')
     .update({ snoozed_until: null })
     .eq('user_id', session.user.id)
     .not('snoozed_until', 'is', null)
-    .lte('snoozed_until', now);
+    .lte('snoozed_until', now)
+    .select();
 
-  if (error) console.error('[ZenLink] Failed to wake snoozed links:', error.message);
-  else console.log('[ZenLink] Checked snoozed links.');
+  if (error) {
+    console.error('[ZenLink] Failed to wake snoozed links:', error.message);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    console.log(`[ZenLink] Waking ${data.length} snoozed link(s).`);
+    await openLinksInTabs(data as Link[]);
+  }
 }

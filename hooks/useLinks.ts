@@ -1,12 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchInboxLinks, fetchSnoozedLinks, saveLink, deleteLink, snoozeLink, searchLinks } from '@/lib/links';
-import type { NewLink, SnoozeOption } from '@/lib/types';
+import type { NewLink, SnoozeSelection } from '@/lib/types';
 
-function snoozeDate(option: SnoozeOption): { snoozed_until: string | null; on_next_session: boolean } {
+export function snoozeDate(selection: SnoozeSelection): { snoozed_until: string | null; on_next_session: boolean } {
+  const { option, customDate } = selection;
   const now = new Date();
 
   if (option === 'next_session') {
     return { snoozed_until: null, on_next_session: true };
+  }
+
+  if (option === 'custom') {
+    return { snoozed_until: customDate ?? null, on_next_session: false };
   }
 
   if (option === '4weeks') {
@@ -54,6 +59,7 @@ export function useSaveLink() {
     mutationFn: (link: NewLink) => saveLink(link),
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['links', 'inbox', vars.user_id] });
+      queryClient.invalidateQueries({ queryKey: ['links', 'snoozed', vars.user_id] });
     },
   });
 }
@@ -72,8 +78,8 @@ export function useDeleteLink(userId: string) {
 export function useSnoozeLink(userId: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, option }: { id: string; option: SnoozeOption }) => {
-      const { snoozed_until, on_next_session } = snoozeDate(option);
+    mutationFn: ({ id, selection }: { id: string; selection: SnoozeSelection }) => {
+      const { snoozed_until, on_next_session } = snoozeDate(selection);
       return snoozeLink(id, snoozed_until, on_next_session);
     },
     onSuccess: () => {

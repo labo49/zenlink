@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useInboxLinks, useDeleteLink, useSnoozeLink, useSearchLinks } from '@/hooks/useLinks';
 import LinkCard from './LinkCard';
-import type { SnoozeOption } from '@/lib/types';
+import type { SnoozeSelection } from '@/lib/types';
 
 export default function InboxView() {
   const { session } = useAuth();
@@ -46,7 +46,7 @@ export default function InboxView() {
           key={link.id}
           link={link}
           onDelete={() => deleteLink.mutate(link.id)}
-          onSnooze={(option: SnoozeOption) => snoozeLink.mutate({ id: link.id, option })}
+          onSnooze={(selection: SnoozeSelection) => snoozeLink.mutate({ id: link.id, selection })}
         />
       ))}
     </div>
