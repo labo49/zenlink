@@ -21,20 +21,29 @@ export default defineBackground(() => {
   });
 });
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+
 async function handleFirefoxSignIn(oauthUrl: string): Promise<{ accessToken: string; refreshToken: string } | null> {
   return new Promise((resolve) => {
     let tabId: number | undefined;
 
-    function interceptor(details: { url: string }) {
-      if (!details.url.includes('access_token=')) return {};
+    // Intercept the redirect RESPONSE from Supabase — the Location header
+    // contains the full URL including the #access_token hash fragment
+    function onHeadersReceived(details: { tabId: number; responseHeaders?: { name: string; value?: string }[] }) {
+      if (details.tabId !== tabId) return {};
 
-      browser.webRequest.onBeforeRequest.removeListener(interceptor);
-      if (tabId !== undefined) browser.tabs.remove(tabId);
+      const location = details.responseHeaders?.find(
+        (h) => h.name.toLowerCase() === 'location',
+      )?.value;
 
-      const url = new URL(details.url);
+      if (!location?.includes('access_token=')) return {};
+
+      browser.webRequest.onHeadersReceived.removeListener(onHeadersReceived);
+      browser.tabs.remove(tabId!);
+
+      const url = new URL(location);
       const hashParams = new URLSearchParams(url.hash.slice(1));
       const queryParams = new URLSearchParams(url.search);
-
       const accessToken = hashParams.get('access_token') ?? queryParams.get('access_token');
       const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
 
@@ -42,10 +51,10 @@ async function handleFirefoxSignIn(oauthUrl: string): Promise<{ accessToken: str
       return { cancel: true };
     }
 
-    browser.webRequest.onBeforeRequest.addListener(
-      interceptor,
-      { urls: ['http://localhost:3000/*'] },
-      ['blocking'],
+    browser.webRequest.onHeadersReceived.addListener(
+      onHeadersReceived,
+      { urls: [`${SUPABASE_URL}/*`] },
+      ['blocking', 'responseHeaders'],
     );
 
     browser.tabs.create({ url: oauthUrl, active: true }).then((tab) => {
