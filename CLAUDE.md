@@ -33,6 +33,11 @@ ZenLink is a private, single-user link-saving tool (Pocket replacement). It allo
 - Full-text search on title and tags
 - "Snoozed" view vs. "Inbox" view
 
+## 🗂 Backlog
+- **Firefox build** — run `npm run build:firefox`, test and package for Firefox Add-ons
+- **Import CSV** — allow user to import a CSV of links (url, title, tags columns) in bulk into Supabase
+- **Gemini AI tag analysis** — implement the Supabase Edge Function `suggest-tags` that calls the Gemini API to analyse the page title and return 3-5 hashtag suggestions
+
 ## 📏 Development Rules
 - **TypeScript Only:** Strict typing; no `any`
 - **Component Pattern:** Use functional components with Tailwind utility classes
