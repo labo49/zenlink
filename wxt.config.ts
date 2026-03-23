@@ -9,7 +9,10 @@ export default defineConfig({
   }),
   manifest: ({ browser }) => ({
     permissions: ['identity', 'tabs', 'storage', 'alarms'],
-    host_permissions: ['https://tysfpsvjzjzimiipykol.supabase.co/*'],
+    host_permissions: [
+      'https://tysfpsvjzjzimiipykol.supabase.co/*',
+      'http://localhost:3000/*',
+    ],
     // Firefox requires a stable extension ID for OAuth redirect URLs to work
     ...(browser === 'firefox' && {
       browser_specific_settings: {
