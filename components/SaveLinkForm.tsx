@@ -10,6 +10,8 @@ export default function SaveLinkForm() {
   const { session } = useAuth();
   const [url, setUrl] = useState('');
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [notes, setNotes] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [loadingTags, setLoadingTags] = useState(false);
   const [snoozeSelection, setSnoozeSelection] = useState<SnoozeSelection | null>(null);
@@ -17,11 +19,26 @@ export default function SaveLinkForm() {
   const saveLink = useSaveLink();
 
   useEffect(() => {
-    browser.tabs.query({ active: true, currentWindow: true }).then(([tab]) => {
+    browser.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
       if (tab.url) setUrl(tab.url);
       if (tab.title) {
         setTitle(tab.title);
         fetchAiTags(tab.title);
+      }
+      if (tab.id) {
+        try {
+          const results = await browser.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: () =>
+              document.querySelector('meta[name="description"]')?.getAttribute('content') ||
+              document.querySelector('meta[property="og:description"]')?.getAttribute('content') ||
+              '',
+          });
+          const desc = results?.[0]?.result as string | undefined;
+          if (desc) setDescription(desc);
+        } catch {
+          // scripting not available on this tab (e.g. chrome:// pages)
+        }
       }
     });
   }, []);
@@ -75,12 +92,16 @@ export default function SaveLinkForm() {
       url,
       title: title || url,
       favicon,
+      description: description || null,
+      notes: notes || null,
       tags,
       snoozed_until,
       on_next_session,
     });
 
     setTags([]);
+    setNotes('');
+    setDescription('');
     setSnoozeSelection(null);
   }
 
@@ -102,6 +123,20 @@ export default function SaveLinkForm() {
         onChange={(e) => setTitle(e.target.value)}
         placeholder="Page title"
         className="w-full text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-indigo-400"
+      />
+      <input
+        type="text"
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Description (auto-filled from page)"
+        className="w-full text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-indigo-400 text-gray-500"
+      />
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder="Notes (optional)"
+        rows={2}
+        className="w-full text-sm border border-gray-200 rounded-md px-3 py-1.5 focus:outline-none focus:border-indigo-400 resize-none"
       />
       <TagInput tags={tags} onChange={setTags} loading={loadingTags} />
 

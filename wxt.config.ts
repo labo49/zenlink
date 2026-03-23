@@ -8,7 +8,7 @@ export default defineConfig({
     plugins: [tailwindcss()],
   }),
   manifest: ({ browser }) => ({
-    permissions: ['identity', 'tabs', 'storage', 'alarms', 'webRequest', 'webRequestBlocking'],
+    permissions: ['identity', 'tabs', 'storage', 'alarms', 'webRequest', 'webRequestBlocking', 'scripting'],
     host_permissions: [
       'https://tysfpsvjzjzimiipykol.supabase.co/*',
       'http://localhost:3000/*',
