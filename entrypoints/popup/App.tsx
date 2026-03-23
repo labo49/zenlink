@@ -4,8 +4,9 @@ import LoginScreen from '@/components/LoginScreen';
 import InboxView from '@/components/InboxView';
 import SnoozedView from '@/components/SnoozedView';
 import SaveLinkForm from '@/components/SaveLinkForm';
+import ImportCSV from '@/components/ImportCSV';
 
-type Tab = 'inbox' | 'snoozed';
+type Tab = 'inbox' | 'snoozed' | 'import';
 
 export default function App() {
   const { session, loading, signOut } = useAuth();
@@ -43,7 +44,7 @@ export default function App() {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 bg-white">
-        {(['inbox', 'snoozed'] as Tab[]).map((tab) => (
+        {(['inbox', 'snoozed', 'import'] as Tab[]).map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -60,7 +61,9 @@ export default function App() {
 
       {/* View */}
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'inbox' ? <InboxView /> : <SnoozedView />}
+        {activeTab === 'inbox' && <InboxView />}
+        {activeTab === 'snoozed' && <SnoozedView />}
+        {activeTab === 'import' && <ImportCSV />}
       </div>
     </div>
   );

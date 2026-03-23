@@ -54,6 +54,12 @@ export async function snoozeLink(
   if (error) throw error;
 }
 
+export async function importLinks(links: NewLink[]): Promise<number> {
+  const { data, error } = await supabase.from('links').insert(links).select('id');
+  if (error) throw error;
+  return data.length;
+}
+
 export async function searchLinks(userId: string, query: string): Promise<Link[]> {
   const { data, error } = await supabase
     .from('links')

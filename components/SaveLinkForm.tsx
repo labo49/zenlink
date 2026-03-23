@@ -122,7 +122,7 @@ export default function SaveLinkForm() {
         ) : (
           <button
             onClick={() => setShowSnooze((v) => !v)}
-            className="text-xs text-gray-400 hover:text-amber-500 transition-colors"
+            className="w-full bg-amber-50 hover:bg-amber-100 text-amber-600 text-sm font-medium py-1.5 rounded-md transition-colors"
           >
             🕐 Snooze on save
           </button>
