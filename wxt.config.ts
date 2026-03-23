@@ -11,6 +11,7 @@ export default defineConfig({
     permissions: ['identity', 'tabs', 'storage', 'alarms', 'webRequest', 'webRequestBlocking'],
     host_permissions: [
       'https://tysfpsvjzjzimiipykol.supabase.co/*',
+      'http://localhost:3000/*',
     ],
     // Firefox requires a stable extension ID for OAuth redirect URLs to work
     ...(browser === 'firefox' && {

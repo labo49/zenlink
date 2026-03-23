@@ -21,40 +21,46 @@ export default defineBackground(() => {
   });
 });
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
-
 async function handleFirefoxSignIn(oauthUrl: string): Promise<{ accessToken: string; refreshToken: string } | null> {
   return new Promise((resolve) => {
     let tabId: number | undefined;
+    let done = false;
 
-    // Intercept the redirect RESPONSE from Supabase — the Location header
-    // contains the full URL including the #access_token hash fragment
-    function onHeadersReceived(details: { tabId: number; responseHeaders?: { name: string; value?: string }[] }) {
-      if (details.tabId !== tabId) return {};
+    function cleanup() {
+      browser.tabs.onUpdated.removeListener(onTabUpdated);
+      browser.webRequest.onBeforeRequest.removeListener(cancelLocalhost);
+    }
 
-      const location = details.responseHeaders?.find(
-        (h) => h.name.toLowerCase() === 'location',
-      )?.value;
+    // tabs.onUpdated sees the FULL URL including the hash fragment
+    // This fires when the tab navigates to localhost:3000/#access_token=...
+    function onTabUpdated(id: number, _changeInfo: object, tab: { url?: string }) {
+      if (id !== tabId || done) return;
+      const url = tab.url ?? '';
+      if (!url.includes('access_token=')) return;
 
-      if (!location?.includes('access_token=')) return {};
-
-      browser.webRequest.onHeadersReceived.removeListener(onHeadersReceived);
+      done = true;
+      cleanup();
       browser.tabs.remove(tabId!);
 
-      const url = new URL(location);
-      const hashParams = new URLSearchParams(url.hash.slice(1));
-      const queryParams = new URLSearchParams(url.search);
-      const accessToken = hashParams.get('access_token') ?? queryParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token') ?? queryParams.get('refresh_token');
-
+      const parsed = new URL(url);
+      const hash = new URLSearchParams(parsed.hash.slice(1));
+      const query = new URLSearchParams(parsed.search);
+      const accessToken = hash.get('access_token') ?? query.get('access_token');
+      const refreshToken = hash.get('refresh_token') ?? query.get('refresh_token');
       resolve(accessToken && refreshToken ? { accessToken, refreshToken } : null);
+    }
+
+    // webRequest cancels the actual connection so Firefox never shows "Unable to connect"
+    function cancelLocalhost(details: { tabId: number }) {
+      if (details.tabId !== tabId) return {};
       return { cancel: true };
     }
 
-    browser.webRequest.onHeadersReceived.addListener(
-      onHeadersReceived,
-      { urls: [`${SUPABASE_URL}/*`] },
-      ['blocking', 'responseHeaders'],
+    browser.tabs.onUpdated.addListener(onTabUpdated);
+    browser.webRequest.onBeforeRequest.addListener(
+      cancelLocalhost,
+      { urls: ['http://localhost:3000/*'] },
+      ['blocking'],
     );
 
     browser.tabs.create({ url: oauthUrl, active: true }).then((tab) => {
