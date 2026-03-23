@@ -1,19 +1,25 @@
 import React from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { useSnoozedLinks, useDeleteLink } from '@/hooks/useLinks';
 import LinkCard from './LinkCard';
 
-// Placeholder until Supabase is wired up
-const MOCK_SNOOZED: {
-  id: string;
-  url: string;
-  title: string;
-  tags: string[];
-  snoozed_until: string;
-}[] = [];
-
 export default function SnoozedView() {
-  if (MOCK_SNOOZED.length === 0) {
+  const { session } = useAuth();
+  const userId = session?.user.id ?? '';
+  const { data: links = [], isLoading } = useSnoozedLinks(userId);
+  const deleteLink = useDeleteLink(userId);
+
+  if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center h-40 text-gray-400 text-sm">
+      <div className="flex items-center justify-center h-24 text-gray-400 text-sm">
+        Loading…
+      </div>
+    );
+  }
+
+  if (links.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-24 text-gray-400 text-sm">
         No snoozed links.
       </div>
     );
@@ -21,8 +27,12 @@ export default function SnoozedView() {
 
   return (
     <div>
-      {MOCK_SNOOZED.map((link) => (
-        <LinkCard key={link.id} link={link} />
+      {links.map((link) => (
+        <LinkCard
+          key={link.id}
+          link={link}
+          onDelete={() => deleteLink.mutate(link.id)}
+        />
       ))}
     </div>
   );
