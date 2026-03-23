@@ -1,12 +1,12 @@
-import { GoogleGenerativeAI } from 'npm:@google/generative-ai';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, content-type',
 };
 
+const GEMINI_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent';
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -21,33 +21,34 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get('GEMINI_API_KEY');
     if (!apiKey) throw new Error('GEMINI_API_KEY not set');
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const prompt = `Given this webpage title, return ONLY a JSON array of 3-5 lowercase hashtags (no spaces, no # symbol) useful for filtering saved links. Example: ["javascript","react","tutorial"]\n\nTitle: "${title}"`;
 
-    const prompt = `Given the following webpage title, suggest 3 to 5 short, relevant hashtags for categorising it as a saved link.
+    const res = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.2, maxOutputTokens: 100 },
+      }),
+    });
 
-Rules:
-- Return ONLY a JSON array of strings, no explanation
-- Each tag should be lowercase, no spaces, no # symbol
-- Be specific and useful for filtering links later
-- Example output: ["javascript", "tutorial", "webdev", "react"]
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('[suggest-tags] Gemini error:', err);
+      return Response.json({ tags: [] }, { headers: corsHeaders });
+    }
 
-Title: "${title}"`;
+    const data = await res.json();
+    const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+    console.log('[suggest-tags] raw:', text);
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text().trim();
-
-    // Parse the JSON array from Gemini's response
-    const match = text.match(/\[.*\]/s);
+    const cleaned = text.replace(/```[a-z]*\n?/g, '').replace(/```/g, '').trim();
+    const match = cleaned.match(/\[[\s\S]*\]/);
     const tags: string[] = match ? JSON.parse(match[0]) : [];
 
-    return Response.json(
-      { tags: tags.slice(0, 5) },
-      { headers: corsHeaders },
-    );
+    return Response.json({ tags: tags.slice(0, 5) }, { headers: corsHeaders });
   } catch (err) {
     console.error('[suggest-tags]', err);
-    // Graceful degradation — return empty tags so the UI still works
-    return Response.json({ tags: [] }, { headers: corsHeaders, status: 200 });
+    return Response.json({ tags: [] }, { headers: corsHeaders });
   }
 });

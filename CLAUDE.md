@@ -36,7 +36,7 @@ ZenLink is a private, single-user link-saving tool (Pocket replacement). It allo
 ## 🗂 Backlog
 - **Firefox build** — run `npm run build:firefox`, test and package for Firefox Add-ons
 - **Import CSV** — allow user to import a CSV of links (url, title, tags columns) in bulk into Supabase
-- **Gemini AI tag analysis** — implement the Supabase Edge Function `suggest-tags` that calls the Gemini API to analyse the page title and return 3-5 hashtag suggestions
+- **Gemini AI tag analysis** — Edge Function built (`supabase/functions/suggest-tags/index.ts`), deployed on Supabase, using `gemini-2.0-flash-lite` via REST API. Timing out on free tier — needs investigation. Model: `gemini-2.0-flash-lite`, key set in Supabase secrets as `GEMINI_API_KEY`
 
 ## 📏 Development Rules
 - **TypeScript Only:** Strict typing; no `any`
